@@ -102,6 +102,7 @@ dependencies = [
 name = "ant_cluster"
 version = "0.1.0"
 dependencies = [
+ "data_retrieve",
  "rand",
 ]
 
