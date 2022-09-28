@@ -1,9 +1,6 @@
 [workspace]
-default-members = ["ant_cluster", "data_retrieve"]
+default-members = ["ant_cluster"]
 members = [
     "ant_cluster",
     "ant_cluster_async",
-    "graphic_engine",
-    "simulation_flows",
-    "data_retrieve",
 ]

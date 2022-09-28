@@ -285,7 +285,7 @@ fn main() {
     let mapa = Arc::new(init_objs());
     show_mapa(&mapa);
     // let mut agents = create_agents();
-    const MAX_ITERS: u32 = 20000u32;
+    const MAX_ITERS: u32 = 200000u32;
     let mut handles = vec![];
     for id in 1..=QTD_AGENTS {
         let mapa = Arc::clone(&mapa);
