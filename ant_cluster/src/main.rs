@@ -2,7 +2,7 @@ use rand::Rng;
 use std::{collections::VecDeque, fmt::Display};
 
 const MAPA_HEIGHT: usize = 80;
-const MAPA_WIDTH: usize = 50;
+const MAPA_WIDTH: usize = 40;
 
 const QTD_OBJS: usize = 200;
 const QTD_AGENTS: usize = 20;
@@ -73,6 +73,7 @@ impl Display for AgentStates {
         }
     }
 }
+
 #[derive(Debug, PartialEq)]
 struct Point {
     i: usize,
@@ -212,17 +213,18 @@ impl Agent {
     fn count_objs_around(&self, mapa: &MapaDef, radius: usize) -> usize {
         let mut count = 0;
         let pos: &Point = &self.pos;
-        for index_i in 0..(radius * 2 + 1) {
-            let i = if pos.i + index_i > radius {
-                pos.i + index_i - radius - 1
+        let side = radius * 2 + 1;
+        for index_i in 0..side {
+            let i = if pos.i + index_i >= radius {
+                (pos.i + index_i - radius) % MAPA_HEIGHT
             } else {
-                MAPA_HEIGHT + pos.i + index_i - radius - 1
+                MAPA_HEIGHT + pos.i - radius + index_i
             };
-            for index_j in 0..(radius * 2 + 1) {
-                let j = if pos.j + index_j > radius {
-                    pos.j + index_j - radius - 1
+            for index_j in 0..side {
+                let j = if pos.j + index_j >= radius {
+                    (pos.j + index_j - radius) % MAPA_WIDTH
                 } else {
-                    MAPA_WIDTH + pos.j + index_j - radius - 1
+                    MAPA_WIDTH + pos.j + index_j - radius
                 };
                 if mapa[i][j] != 0 {
                     count += 1;
@@ -232,7 +234,7 @@ impl Agent {
         return count;
     }
 
-    fn probability(&self, qtd_objs: usize, radius: usize) -> f64 {
+    fn probability(qtd_objs: usize, radius: usize) -> f64 {
         let len_radius = radius * 2 + 1;
         let qtd_cels = len_radius * len_radius - 1;
         qtd_objs as f64 / qtd_cels as f64
@@ -258,7 +260,7 @@ impl Agent {
             return false;
         }
         let qtd_objs = self.count_objs_around(mapa, RADIUS);
-        let prob = self.probability(qtd_objs, RADIUS);
+        let prob = Agent::probability(qtd_objs, RADIUS);
 
         let mut rng = rand::thread_rng();
 
@@ -295,7 +297,7 @@ impl Agent {
         }
 
         let qtd_objs = self.count_objs_around(mapa, RADIUS);
-        let prob = self.probability(qtd_objs, RADIUS);
+        let prob = Agent::probability(qtd_objs, RADIUS);
 
         let mut rng = rand::thread_rng();
 
@@ -325,13 +327,13 @@ fn main() {
     let mut mapa = init_objs();
     let mut agents = create_agents();
     let mut iter = 0u32;
-    const MAX_ITERS: u32 = 100000u32;
+    const MAX_ITERS: u32 = 1_000_000u32;
     show_mapa(&mapa);
     loop {
         for agent in agents.iter_mut() {
             agent.update_agent(&mut mapa);
         }
-        if iter % 1000 == 0 {
+        if iter % 10000 == 0 {
             println!("Iteração: {}", iter);
         }
         if {
@@ -343,20 +345,21 @@ fn main() {
         }
     }
     for agent in agents.iter_mut() {
-        agent.state = if agent.state == AgentStates::SEARCHING{
+        agent.state = if agent.state == AgentStates::SEARCHING {
             AgentStates::DONE
-        }else{
+        } else {
             AgentStates::FINISHING
         };
     }
     loop {
-        let remaining = agents.iter_mut().filter(|agent| {
-            agent.state == AgentStates::FINISHING
-        }).collect::<Vec<&mut Agent>>();
-        if remaining.is_empty(){
+        let remaining = agents
+            .iter_mut()
+            .filter(|agent| agent.state == AgentStates::FINISHING)
+            .collect::<Vec<&mut Agent>>();
+        if remaining.is_empty() {
             break;
         }
-        for agent in remaining{
+        for agent in remaining {
             agent.update_agent(&mut mapa);
         }
         if iter % 1000 == 0 {

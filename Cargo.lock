@@ -3,6 +3,13 @@
 version = 3
 
 [[package]]
+name = "agent"
+version = "0.1.0"
+dependencies = [
+ "rand",
+]
+
+[[package]]
 name = "ant_cluster"
 version = "0.1.0"
 dependencies = [
@@ -17,10 +24,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "ant_cluster_data"
+version = "0.1.0"
+dependencies = [
+ "data_retrieve",
+ "rand",
+]
+
+[[package]]
 name = "cfg-if"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
+
+[[package]]
+name = "data_retrieve"
+version = "0.1.0"
 
 [[package]]
 name = "getrandom"
