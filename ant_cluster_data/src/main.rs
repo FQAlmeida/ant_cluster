@@ -1,28 +1,44 @@
 use rand::Rng;
 use std::{collections::VecDeque, fmt::Display};
 
+use data_retrieve::{get_data, Data, DATA_1_FP};
+
 const MAPA_HEIGHT: usize = 40;
 const MAPA_WIDTH: usize = 40;
 
-const QTD_OBJS: usize = 150;
 const QTD_AGENTS: usize = 20;
 
-type CarryValueType = u32;
+type CarryValueType = Data;
 type MapaDef = Vec<Vec<CarryValueType>>;
 
+fn init_map() -> MapaDef {
+    let mut mapa = vec![];
+    for i in 0..MAPA_HEIGHT {
+        mapa.push(vec![]);
+        for _ in 0..MAPA_WIDTH {
+            mapa[i].push(Data::new_empty_data());
+        }
+    }
+    return mapa;
+}
+
 fn init_objs() -> MapaDef {
-    let mut mapa = vec![vec![0; MAPA_WIDTH]; MAPA_HEIGHT];
+    let mut mapa = init_map();
     let mut rng = rand::thread_rng();
     let mut qtd_done = 0;
-    while qtd_done < QTD_OBJS {
+    let data = get_data(DATA_1_FP);
+    assert_eq!(data.len(), 400);
+    while qtd_done < data.len() {
         let i: usize = rng.gen_range(0..MAPA_HEIGHT);
         let j: usize = rng.gen_range(0..MAPA_WIDTH);
         // let value: u32 = rng.gen_range(1u32..=9u32);
         let mapa_pos = mapa[i][j];
-        if mapa_pos != 0 {
+        if !mapa_pos.is_empty() {
             continue;
         }
-        mapa[i][j] = 1;
+        mapa[i][j].x = data[qtd_done].x;
+        mapa[i][j].y = data[qtd_done].y;
+        mapa[i][j].group = data[qtd_done].group;
         qtd_done += 1;
     }
     return mapa;
@@ -33,11 +49,11 @@ fn show_mapa(mapa: &MapaDef) {
     println!("{}", divisor);
     for row in mapa {
         for cel in row {
-            if *cel == 0 {
+            if cel.is_empty() {
                 print!("|   ");
                 continue;
             }
-            print!("| {} ", cel);
+            print!("| {} ", cel.group);
         }
         print!("|\n");
     }
@@ -116,7 +132,7 @@ impl Agent {
         Agent {
             pos: point,
             state: AgentStates::SEARCHING,
-            backpack: 0,
+            backpack: Data::new_empty_data(),
             history,
             rounds_carrying: 0,
             radius,
@@ -210,6 +226,44 @@ impl Agent {
         self.pos = new_pos;
     }
 
+    fn get_distance(data_1: &Data, data_2: &Data) -> f64 {
+        let diff_x = data_1.x - data_2.x;
+        let diff_y = data_1.y - data_2.y;
+        let square = diff_x * diff_x + diff_y * diff_y;
+        square.sqrt()
+    }
+
+    fn get_density(&self, mapa: &MapaDef) -> f64 {
+        let mut density = 0.0;
+        let pos: &Point = &self.pos;
+        let radius = self.radius;
+        let side = radius * 2 + 1;
+        let mut area = 0.0;
+        let alpha = 45.0;
+        for index_i in 0..side {
+            let i = if pos.i + index_i >= radius {
+                (pos.i + index_i - radius) % MAPA_HEIGHT
+            } else {
+                MAPA_HEIGHT + pos.i - radius + index_i
+            };
+            for index_j in 0..side {
+                let j = if pos.j + index_j >= radius {
+                    (pos.j + index_j - radius) % MAPA_WIDTH
+                } else {
+                    MAPA_WIDTH + pos.j + index_j - radius
+                };
+                if !mapa[i][j].is_empty() && (i != pos.i || j != pos.j) {
+                    density += 1.0 - (Agent::get_distance(&self.backpack, &mapa[i][j]) / alpha);
+                    area += 1.0;
+                }
+            }
+        }
+        if density <= 0.0 {
+            return 0.0;
+        }
+        density / (area * area)
+    }
+
     fn count_objs_around(&self, mapa: &MapaDef) -> usize {
         let mut count = 0;
         let pos: &Point = &self.pos;
@@ -227,7 +281,7 @@ impl Agent {
                 } else {
                     MAPA_WIDTH + pos.j + index_j - radius
                 };
-                if mapa[i][j] != 0 && (i != pos.i || j != pos.j) {
+                if mapa[i][j].is_empty() {
                     count += 1;
                 }
             }
@@ -244,30 +298,37 @@ impl Agent {
     fn update_searching(&mut self, mapa: &mut MapaDef) {
         let pos = &self.pos;
         if self.should_take(mapa) {
-            let old = mapa[pos.i][pos.j];
-            self.backpack = mapa[pos.i][pos.j];
-            mapa[pos.i][pos.j] = 0;
-            assert_eq!(self.backpack, old);
-            assert_eq!(mapa[pos.i][pos.j], 0);
+            self.backpack.x = mapa[pos.i][pos.j].x;
+            self.backpack.y = mapa[pos.i][pos.j].y;
+            self.backpack.group = mapa[pos.i][pos.j].group;
+            let empty = Data::new_empty_data();
+            mapa[pos.i][pos.j].x = empty.x;
+            mapa[pos.i][pos.j].y = empty.y;
+            mapa[pos.i][pos.j].group = empty.group;
             self.state = AgentStates::CARRYING;
-            self.rounds_carrying = 1;
+            self.rounds_carrying = 0;
             // println!("TOOK");
         }
     }
 
     fn should_take(&self, mapa: &mut MapaDef) -> bool {
         let pos = &self.pos;
-        if mapa[pos.i][pos.j] == 0 {
+        if mapa[pos.i][pos.j].is_empty() {
             return false;
         }
-        let qtd_objs = self.count_objs_around(mapa);
-        let prob = Agent::probability(qtd_objs, self.radius);
+        assert_ne!(mapa[pos.i][pos.j].x, 0.0);
+        assert_ne!(mapa[pos.i][pos.j].y, 0.0);
+        assert_ne!(mapa[pos.i][pos.j].group, 0);
+        let k1 = 0.6;
+        let density = self.get_density(mapa);
+        let coeff = k1 / (k1 + density);
+        let prob = coeff * coeff;
 
         let mut rng = rand::thread_rng();
 
         let value = rng.gen_range(0f64..=1f64);
 
-        let decision = value >= prob;
+        let decision = value <= prob;
         decision
     }
 
@@ -277,11 +338,13 @@ impl Agent {
             self.rounds_carrying += 1;
             return;
         }
-        let old = self.backpack;
-        mapa[pos.i][pos.j] = self.backpack;
-        self.backpack = 0;
-        assert_eq!(self.backpack, 0);
-        assert_eq!(mapa[pos.i][pos.j], old);
+        mapa[pos.i][pos.j].x = self.backpack.x;
+        mapa[pos.i][pos.j].y = self.backpack.y;
+        mapa[pos.i][pos.j].group = self.backpack.group;
+        let empty = Data::new_empty_data();
+        self.backpack.x = empty.x;
+        self.backpack.y = empty.y;
+        self.backpack.group = empty.group;
         self.state = if self.state == AgentStates::CARRYING {
             AgentStates::SEARCHING
         } else {
@@ -293,12 +356,14 @@ impl Agent {
 
     fn should_drop(&self, mapa: &mut MapaDef) -> bool {
         let pos = &self.pos;
-        if mapa[pos.i][pos.j] != 0 {
+        if !mapa[pos.i][pos.j].is_empty() {
             return false;
         }
 
-        let qtd_objs = self.count_objs_around(mapa);
-        let prob = Agent::probability(qtd_objs, self.radius);
+        let k2 = 0.6;
+        let density = self.get_density(mapa);
+        let coeff = density / (k2 + density);
+        let prob = coeff * coeff;
 
         let mut rng = rand::thread_rng();
 
@@ -340,10 +405,10 @@ fn main() {
     let mut mapa = init_objs();
     let mut agents = create_agents(radius);
     show_mapa(&mapa);
-    for _ in 0..max_iters {
-        // if iter % 10000 == 0 {
-        //     println!("Iteração: {}", iter);
-        // }
+    for iter in 0..max_iters {
+        if iter % 10000 == 0 {
+            println!("Iteração: {}", iter);
+        }
         for agent in agents.iter_mut() {
             agent.update_agent(&mut mapa);
         }
@@ -355,21 +420,23 @@ fn main() {
             AgentStates::FINISHING
         };
     }
+    show_mapa(&mapa);
     let mut iter = 0;
     loop {
-        let remaining = agents
+        let mut remaining = agents
             .iter_mut()
             .filter(|agent| agent.state == AgentStates::FINISHING)
             .collect::<Vec<&mut Agent>>();
         if remaining.is_empty() {
             break;
         }
-        for agent in remaining {
+        for agent in remaining.iter_mut() {
             agent.update_agent(&mut mapa);
         }
-        // if iter % 1000 == 0 {
-        //     println!("Iteração Extra: {}", iter);
-        // }
+        if iter % 10000 == 0 {
+            println!("Iteração Extra: {}", iter);
+            println!("Remaining {}", remaining.len());
+        }
         iter += 1;
     }
     println!("Extra Iters {}", iter);
