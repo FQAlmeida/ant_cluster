@@ -1,5 +1,5 @@
 [workspace]
-default-members = ["ant_cluster_data"]
+default-members = ["ant_cluster"]
 members = [
     "ant_cluster",
     "ant_cluster_data",

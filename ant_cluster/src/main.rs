@@ -1,13 +1,11 @@
 use rand::Rng;
 use std::{collections::VecDeque, fmt::Display};
 
-const MAPA_HEIGHT: usize = 80;
+const MAPA_HEIGHT: usize = 40;
 const MAPA_WIDTH: usize = 40;
 
-const QTD_OBJS: usize = 200;
+const QTD_OBJS: usize = 150;
 const QTD_AGENTS: usize = 20;
-
-const RADIUS: usize = 1;
 
 type CarryValueType = u32;
 type MapaDef = Vec<Vec<CarryValueType>>;
@@ -86,6 +84,7 @@ struct Agent {
     backpack: CarryValueType,
     history: VecDeque<Point>,
     rounds_carrying: usize,
+    radius: usize,
 }
 
 impl Agent {
@@ -102,7 +101,7 @@ impl Agent {
         //     self.pos.i, self.pos.j, self.backpack, self.state
         // );
     }
-    pub fn new(initial_i: usize, initial_j: usize) -> Agent {
+    pub fn new(initial_i: usize, initial_j: usize, radius: usize) -> Agent {
         let mut history: VecDeque<Point> = VecDeque::new();
         let point = Point {
             i: initial_i,
@@ -120,6 +119,7 @@ impl Agent {
             backpack: 0,
             history,
             rounds_carrying: 0,
+            radius,
         }
     }
 
@@ -210,9 +210,10 @@ impl Agent {
         self.pos = new_pos;
     }
 
-    fn count_objs_around(&self, mapa: &MapaDef, radius: usize) -> usize {
+    fn count_objs_around(&self, mapa: &MapaDef) -> usize {
         let mut count = 0;
         let pos: &Point = &self.pos;
+        let radius = self.radius;
         let side = radius * 2 + 1;
         for index_i in 0..side {
             let i = if pos.i + index_i >= radius {
@@ -259,8 +260,8 @@ impl Agent {
         if mapa[pos.i][pos.j] == 0 {
             return false;
         }
-        let qtd_objs = self.count_objs_around(mapa, RADIUS);
-        let prob = Agent::probability(qtd_objs, RADIUS);
+        let qtd_objs = self.count_objs_around(mapa);
+        let prob = Agent::probability(qtd_objs, self.radius);
 
         let mut rng = rand::thread_rng();
 
@@ -296,8 +297,8 @@ impl Agent {
             return false;
         }
 
-        let qtd_objs = self.count_objs_around(mapa, RADIUS);
-        let prob = Agent::probability(qtd_objs, RADIUS);
+        let qtd_objs = self.count_objs_around(mapa);
+        let prob = Agent::probability(qtd_objs, self.radius);
 
         let mut rng = rand::thread_rng();
 
@@ -310,7 +311,7 @@ impl Agent {
 
 // fn agent_worker(initial_x: usize, initial_y: usize) {}
 
-fn create_agents() -> Vec<Agent> {
+fn create_agents(radius: usize) -> Vec<Agent> {
     let mut agents: Vec<Agent> = vec![];
     let mut rng = rand::thread_rng();
     for _ in 0..QTD_AGENTS {
@@ -318,30 +319,33 @@ fn create_agents() -> Vec<Agent> {
             i: rng.gen_range(0..MAPA_HEIGHT),
             j: rng.gen_range(0..MAPA_WIDTH),
         };
-        agents.push(Agent::new(pos.i, pos.j));
+        agents.push(Agent::new(pos.i, pos.j, radius));
     }
     return agents;
 }
 
 fn main() {
+    let args: Vec<String> = std::env::args().collect();
+    let radius: usize = if args.len() > 1 {
+        args[1].parse::<usize>().unwrap_or(1)
+    } else {
+        1
+    };
+    let max_iters: usize = if args.len() > 2 {
+        args[2].parse::<usize>().unwrap_or(100_000)
+    } else {
+        100_000
+    };
+    println!("Config Radius {} Iters {}", radius, max_iters);
     let mut mapa = init_objs();
-    let mut agents = create_agents();
-    let mut iter = 0u32;
-    const MAX_ITERS: u32 = 1_000_000u32;
+    let mut agents = create_agents(radius);
     show_mapa(&mapa);
-    loop {
+    for _ in 0..max_iters {
+        // if iter % 10000 == 0 {
+        //     println!("Iteração: {}", iter);
+        // }
         for agent in agents.iter_mut() {
             agent.update_agent(&mut mapa);
-        }
-        if iter % 10000 == 0 {
-            println!("Iteração: {}", iter);
-        }
-        if {
-            iter += 1;
-            iter
-        } == MAX_ITERS
-        {
-            break;
         }
     }
     for agent in agents.iter_mut() {
@@ -351,6 +355,7 @@ fn main() {
             AgentStates::FINISHING
         };
     }
+    let mut iter = 0;
     loop {
         let remaining = agents
             .iter_mut()
@@ -362,10 +367,11 @@ fn main() {
         for agent in remaining {
             agent.update_agent(&mut mapa);
         }
-        if iter % 1000 == 0 {
-            println!("Iteração: {}", iter);
-        }
+        // if iter % 1000 == 0 {
+        //     println!("Iteração Extra: {}", iter);
+        // }
         iter += 1;
     }
+    println!("Extra Iters {}", iter);
     show_mapa(&mapa);
 }
