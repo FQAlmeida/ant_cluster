@@ -3,8 +3,8 @@ use std::{collections::VecDeque, fmt::Display};
 
 use data_retrieve::{get_data, Data, DATA_1_FP};
 
-const MAPA_HEIGHT: usize = 40;
-const MAPA_WIDTH: usize = 40;
+const MAPA_HEIGHT: usize = 70;
+const MAPA_WIDTH: usize = 45;
 
 const QTD_AGENTS: usize = 20;
 
@@ -229,7 +229,7 @@ impl Agent {
     fn get_distance(data_1: &Data, data_2: &Data) -> f64 {
         let diff_x = data_1.x - data_2.x;
         let diff_y = data_1.y - data_2.y;
-        let square = diff_x * diff_x + diff_y * diff_y;
+        let square = (diff_x * diff_x) + (diff_y * diff_y);
         square.sqrt()
     }
 
@@ -239,7 +239,7 @@ impl Agent {
         let radius = self.radius;
         let side = radius * 2 + 1;
         let mut area = 0.0;
-        let alpha = 45.0;
+        let alpha = 2.0;
         for index_i in 0..side {
             let i = if pos.i + index_i >= radius {
                 (pos.i + index_i - radius) % MAPA_HEIGHT
@@ -253,7 +253,11 @@ impl Agent {
                     MAPA_WIDTH + pos.j + index_j - radius
                 };
                 if !mapa[i][j].is_empty() && (i != pos.i || j != pos.j) {
-                    density += 1.0 - (Agent::get_distance(&self.backpack, &mapa[i][j]) / alpha);
+                    let dist = Agent::get_distance(&self.backpack, &mapa[i][j]);
+                    let dissim = 1.0 - (dist / alpha);
+                    if dissim >= 0.0 {
+                        density += dissim;
+                    }
                     area += 1.0;
                 }
             }
@@ -261,54 +265,26 @@ impl Agent {
         if density <= 0.0 {
             return 0.0;
         }
-        density / (area * area)
-    }
-
-    fn count_objs_around(&self, mapa: &MapaDef) -> usize {
-        let mut count = 0;
-        let pos: &Point = &self.pos;
-        let radius = self.radius;
-        let side = radius * 2 + 1;
-        for index_i in 0..side {
-            let i = if pos.i + index_i >= radius {
-                (pos.i + index_i - radius) % MAPA_HEIGHT
-            } else {
-                MAPA_HEIGHT + pos.i - radius + index_i
-            };
-            for index_j in 0..side {
-                let j = if pos.j + index_j >= radius {
-                    (pos.j + index_j - radius) % MAPA_WIDTH
-                } else {
-                    MAPA_WIDTH + pos.j + index_j - radius
-                };
-                if mapa[i][j].is_empty() {
-                    count += 1;
-                }
-            }
-        }
-        return count;
-    }
-
-    fn probability(qtd_objs: usize, radius: usize) -> f64 {
-        let len_radius = radius * 2 + 1;
-        let qtd_cels = len_radius * len_radius - 1;
-        qtd_objs as f64 / qtd_cels as f64
+        let f = density / (area * area);
+        assert!(f <= 1.0);
+        f
     }
 
     fn update_searching(&mut self, mapa: &mut MapaDef) {
         let pos = &self.pos;
-        if self.should_take(mapa) {
-            self.backpack.x = mapa[pos.i][pos.j].x;
-            self.backpack.y = mapa[pos.i][pos.j].y;
-            self.backpack.group = mapa[pos.i][pos.j].group;
-            let empty = Data::new_empty_data();
-            mapa[pos.i][pos.j].x = empty.x;
-            mapa[pos.i][pos.j].y = empty.y;
-            mapa[pos.i][pos.j].group = empty.group;
-            self.state = AgentStates::CARRYING;
-            self.rounds_carrying = 0;
-            // println!("TOOK");
+        if !self.should_take(mapa) {
+            return;
         }
+        self.backpack.x = mapa[pos.i][pos.j].x;
+        self.backpack.y = mapa[pos.i][pos.j].y;
+        self.backpack.group = mapa[pos.i][pos.j].group;
+        let empty = Data::new_empty_data();
+        mapa[pos.i][pos.j].x = empty.x;
+        mapa[pos.i][pos.j].y = empty.y;
+        mapa[pos.i][pos.j].group = empty.group;
+        self.state = AgentStates::CARRYING;
+        self.rounds_carrying = 0;
+        // println!("TOOK");
     }
 
     fn should_take(&self, mapa: &mut MapaDef) -> bool {
@@ -319,7 +295,7 @@ impl Agent {
         assert_ne!(mapa[pos.i][pos.j].x, 0.0);
         assert_ne!(mapa[pos.i][pos.j].y, 0.0);
         assert_ne!(mapa[pos.i][pos.j].group, 0);
-        let k1 = 0.6;
+        let k1 = 0.01;
         let density = self.get_density(mapa);
         let coeff = k1 / (k1 + density);
         let prob = coeff * coeff;
@@ -366,7 +342,6 @@ impl Agent {
         let prob = coeff * coeff;
 
         let mut rng = rand::thread_rng();
-
         let value = rng.gen_range(0f64..=1f64);
 
         let decision = value <= prob;
@@ -406,8 +381,9 @@ fn main() {
     let mut agents = create_agents(radius);
     show_mapa(&mapa);
     for iter in 0..max_iters {
-        if iter % 10000 == 0 {
+        if iter % 100000 == 0 {
             println!("Iteração: {}", iter);
+            show_mapa(&mapa);
         }
         for agent in agents.iter_mut() {
             agent.update_agent(&mut mapa);
