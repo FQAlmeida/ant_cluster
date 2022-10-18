@@ -1,3 +1,4 @@
+use object::Object;
 use rand::Rng;
 use std::{collections::VecDeque, fmt::Display};
 
@@ -12,20 +13,20 @@ enum AgentStates {
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
-struct Point {
-    i: usize,
-    j: usize,
+pub struct Point {
+    pub i: usize,
+    pub j: usize,
 }
 
 #[derive(Clone, Copy)]
-struct AgentConfig {
+pub struct AgentConfig {
     vision_radius: usize,
     map_height: usize,
     map_width: usize,
     queue_size: usize,
 }
 
-struct Agent<T> {
+pub struct Agent<T> {
     pos: Point,
     state: AgentStates,
     backpack: T,
@@ -52,11 +53,6 @@ impl Display for AgentStates {
     }
 }
 
-trait Object {
-    fn is_empty(&self) -> bool;
-    fn clone_empty() -> Self;
-}
-
 impl<T: Object + Clone> Agent<T> {
     pub fn update_agent(&mut self, mapa: &mut Vision<T>) {
         let mut vision = self.see_map(mapa);
@@ -67,6 +63,9 @@ impl<T: Object + Clone> Agent<T> {
             AgentStates::DONE => (),
         }
         self.move_agent();
+    }
+    pub fn get_pos(&self) -> Point{
+        self.pos
     }
     pub fn new(pos: Point, config: AgentConfig) -> Agent<T> {
         let mut history: VecDeque<Point> = VecDeque::new();
@@ -237,12 +236,14 @@ impl<T: Object + Clone> Agent<T> {
         }
         return count;
     }
+
     fn probability(&self, qtd_objs: usize) -> f64 {
         let radius = self.config.vision_radius;
         let side = radius * 2 + 1;
         let qtd_cels = side * side - 1;
         qtd_objs as f64 / qtd_cels as f64
     }
+
     fn should_take(&self, vision: &mut Vision<T>) -> bool {
         let pos = &self.pos;
         if vision[pos.i][pos.j].is_empty() {
@@ -258,7 +259,7 @@ impl<T: Object + Clone> Agent<T> {
         let decision = value >= prob;
         decision
     }
-    
+
     fn should_drop(&self, vision: &mut Vision<T>) -> bool {
         let pos = &self.pos;
         if vision[pos.i][pos.j].is_empty() {
@@ -276,12 +277,48 @@ impl<T: Object + Clone> Agent<T> {
         decision // || self.rounds_carrying > 10
     }
 
-    pub fn should_finish(&mut self){
+    pub fn should_finish(&mut self) {
         self.state = match self.state {
             AgentStates::CARRYING => AgentStates::FINISHING,
             AgentStates::SEARCHING => AgentStates::DONE,
             AgentStates::FINISHING => AgentStates::FINISHING,
             AgentStates::DONE => AgentStates::DONE,
         };
+    }
+
+    pub fn set_finishing(&mut self) {
+        self.state = if self.state == AgentStates::SEARCHING {
+            AgentStates::DONE
+        } else {
+            AgentStates::FINISHING
+        };
+    }
+
+    pub fn is_finishing(&self) -> bool{
+        self.state == AgentStates::FINISHING
+    }
+
+    pub fn create_agents(
+        radius: usize,
+        qtd: usize,
+        map_height: usize,
+        map_width: usize,
+    ) -> Vec<Agent<T>> {
+        let mut agents: Vec<Agent<T>> = vec![];
+        let mut rng = rand::thread_rng();
+        for _ in 0..qtd {
+            let pos = Point {
+                i: rng.gen_range(0..map_height),
+                j: rng.gen_range(0..map_width),
+            };
+            let config = AgentConfig {
+                vision_radius: radius,
+                map_height,
+                map_width,
+                queue_size: 8,
+            };
+            agents.push(Agent::new(pos, config));
+        }
+        return agents;
     }
 }

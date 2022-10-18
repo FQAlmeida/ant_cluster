@@ -2,6 +2,8 @@ use std::fs;
 
 pub const DATA_1_FP: &str = "data/data_1.txt";
 
+use object::Object;
+
 #[derive(Copy, Clone)]
 pub struct Data {
     pub x: f64,
@@ -9,15 +11,15 @@ pub struct Data {
     pub group: u8,
 }
 
-impl Data {
-    pub fn new_empty_data() -> Data {
+impl Object for Data {
+    fn clone_empty() -> Data {
         Data {
             x: 0.0,
             y: 0.0,
             group: 0,
         }
     }
-    pub fn is_empty(&self) -> bool {
+    fn is_empty(&self) -> bool {
         self.group == 0
     }
 }
@@ -46,7 +48,7 @@ mod tests {
     fn it_works() {
         let data = get_data("../data/data_1.txt");
         assert!(data.len() == 400);
-        for d in data{
+        for d in data {
             assert_ne!(d.x, 0.0);
             assert_ne!(d.y, 0.0);
             assert_ne!(d.group, 0);
