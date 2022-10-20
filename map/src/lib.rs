@@ -1,6 +1,6 @@
 use data_retrieve::{get_data, Data, DATA_1_FP};
-use rand::Rng;
 use object::Object;
+use rand::Rng;
 
 pub type CarryValueType = Data;
 pub type MapaDef = Vec<Vec<CarryValueType>>;
@@ -36,4 +36,21 @@ pub fn init_objs(mapa_height: usize, mapa_width: usize) -> MapaDef {
         qtd_done += 1;
     }
     return mapa;
+}
+
+pub fn show_mapa(mapa: &MapaDef, mapa_width: usize) {
+    let divisor = "-".repeat(mapa_width * 4 + 1);
+    println!("{}", divisor);
+    for row in 0..mapa.len() {
+        for cel in &mapa[row] {
+            if cel.is_empty() {
+                print!("|   ");
+                continue;
+            }
+            print!("| {} ", cel.group);
+        }
+        print!("|\n");
+    }
+    println!("{}", divisor);
+    println!();
 }

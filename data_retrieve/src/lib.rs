@@ -22,6 +22,13 @@ impl Object for Data {
     fn is_empty(&self) -> bool {
         self.group == 0
     }
+
+    fn get_distance(&self, other_obj: &Data) -> f64 {
+        let diff_x = self.x - other_obj.x;
+        let diff_y = self.y - other_obj.y;
+        let square = (diff_x * diff_x) + (diff_y * diff_y);
+        square.sqrt()
+    }
 }
 
 pub fn get_data(fp: &str) -> Vec<Data> {

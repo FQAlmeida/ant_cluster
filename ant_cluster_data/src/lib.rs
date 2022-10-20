@@ -240,7 +240,7 @@ impl Agent {
         let radius = self.radius;
         let side = radius * 2 + 1;
         let mut area = 0.0;
-        let alpha = 3.0;
+        let alpha = 6.0;
         for index_i in 0..side {
             let i = if pos.i + index_i >= radius {
                 (pos.i + index_i - radius) % MAPA_HEIGHT
@@ -337,7 +337,7 @@ impl Agent {
             return false;
         }
 
-        let k2 = 0.75;
+        let k2 = 0.20;
         let density = self.get_density(mapa);
         // if density != 0.0 {
         //     println!("{}", density);

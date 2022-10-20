@@ -68,8 +68,10 @@ dependencies = [
 name = "ant_cluster_graphics"
 version = "0.1.0"
 dependencies = [
+ "agent",
  "ant_cluster_data",
  "graphics_engine",
+ "object",
  "simulation",
 ]
 

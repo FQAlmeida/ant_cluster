@@ -9,3 +9,5 @@ edition = "2021"
 graphics_engine = {path="../graphics_engine"}
 ant_cluster_data = {path="../ant_cluster_data"}
 simulation = {path="../simulation"}
+object = {path="../object"}
+agent = {path="../agent"}
