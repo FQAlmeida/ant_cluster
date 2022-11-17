@@ -1,7 +1,9 @@
+use std::{sync::mpsc, thread::spawn};
+
 use agent::AgentStates;
 use graphics_engine::{App, EventsBridge};
 use object::Object;
-use simulation::{Sim, SimConfig};
+use simulation::{Sim, SimConfig, SimState};
 
 fn main() {
     // let title = "Ant Cluster";
@@ -24,11 +26,38 @@ fn main() {
         qtd_agents: 40,
         agent_vision_radius: radius,
     };
-    let mut sim = Sim::create(config);
+    let (sender_signal, receiver_signal) = mpsc::channel::<bool>();
+    let (sender_data, receiver_data) = mpsc::channel::<Vec<graphics_engine::Object>>();
 
-    fn handle_update(sim: &mut Sim) -> Vec<graphics_engine::Object> {
+    spawn(move || {
+        let mut sim = Sim::create(config);
+        loop {
+            sim.update();
+
+            let signal = receiver_signal.try_recv();
+            match signal {
+                Ok(msg) => {
+                    if msg {
+                        sender_data.send(handle_update(&sim)).unwrap();
+                    } else {
+                        break;
+                    }
+                }
+                Err(_) => {}
+            }
+            // if sim.get_state() == SimState::DONE{
+            //     break;
+            // }
+        }
+        // println!("Sim iters {}", tsa.get_current_iter());
+        // dbg!(tsa.get_current_iter());
+        // dbg!(tsa.get_current_distance());
+        dbg!(sim.extra_iters);
+    });
+
+    fn handle_update(sim: &Sim) -> Vec<graphics_engine::Object> {
         let mut objects: Vec<graphics_engine::Object> = vec![];
-        sim.update();
+        // sim.update();
 
         for i in 0..sim.mapa.len() {
             for j in 0..sim.mapa[i].len() {
@@ -69,7 +98,13 @@ fn main() {
         }
 
         if let Some(args) = e.update_args() {
-            app.update(&args, handle_update(&mut sim));
+            sender_signal.send(true).unwrap();
+            let objects = receiver_data.recv().unwrap();
+            app.update(&args, objects);
+        }
+
+        if let Some(_) = e.close_args() {
+            sender_signal.send(false).unwrap();
         }
     }
 }

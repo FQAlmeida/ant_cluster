@@ -2,7 +2,8 @@ use agent::Agent;
 use data_retrieve::Data;
 use map::{init_objs, MapaDef};
 
-enum SimState {
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum SimState {
     RUNNING,
     FINISHING,
     DONE,
@@ -128,6 +129,10 @@ impl Sim {
             self.mapa[pos.i][pos.j] = vision[1][1];
         }
         self.extra_iters += 1;
+    }
+
+    pub fn get_state(&self) -> SimState{
+        self.state
     }
 
     pub fn update(&mut self) {

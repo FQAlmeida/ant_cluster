@@ -339,9 +339,9 @@ impl<T: Object + Clone + Copy> Agent<T> {
                     // let dist = Agent::get_distance(&self.backpack, &vision[i][j]);
                     let dist = self.backpack.get_distance(&vision[i][j]);
                     let dissim = 1.0 - (dist / alpha);
-                    if dissim >= 0.0 {
-                        density += dissim;
-                    }
+                    // if dissim >= 0.0 {
+                    density += dissim;
+                    // }
                     area += 1.0;
                 }
             }
@@ -362,7 +362,7 @@ impl<T: Object + Clone + Copy> Agent<T> {
         // assert_ne!(vision[pos.i][pos.j].x, 0.0);
         // assert_ne!(vision[pos.i][pos.j].y, 0.0);
         // assert_ne!(vision[pos.i][pos.j].group, 0);
-        let k1 = 0.25;
+        let k1 = 0.35;
         let density = self.get_density(vision);
         let coeff = k1 / (k1 + density);
         let prob = coeff * coeff;
@@ -381,7 +381,7 @@ impl<T: Object + Clone + Copy> Agent<T> {
             return false;
         }
 
-        let k2 = 0.2;
+        let k2 = 0.35;
         let density = self.get_density(vision);
         // if density != 0.0 {
         //     println!("{}", density);
